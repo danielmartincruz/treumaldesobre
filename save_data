@@ -1,0 +1,39 @@
+import csv
+import folium
+
+# Define the CSV filename
+db_filename = "camping_data.csv"
+
+def save_point(name, lat, lon, road_direction=None):
+    """
+    Saves a relevant point in the camping with optional road direction.
+    :param name: Name of the location (e.g., "Bungalow 1", "Reception")
+    :param lat: Latitude
+    :param lon: Longitude
+    :param road_direction: Direction of road segment (e.g., "one-way", "two-way")
+    """
+    with open(db_filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([name, lat, lon, road_direction])
+    print(f"Saved: {name} at ({lat}, {lon}) with direction {road_direction}")
+
+# Initialize CSV file with headers if it doesn't exist
+try:
+    with open(db_filename, mode='x', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["name", "latitude", "longitude", "road_direction"])
+except FileExistsError:
+    pass  # File already exists
+
+# Create an interactive map centered at Camping Treumal
+camping_center = (41.8355, 3.0870)
+m = folium.Map(location=camping_center, zoom_start=17)
+
+# Enable click event to show coordinates
+folium.LatLngPopup().add_to(m)
+
+# Save map to file
+map_filename = "select_points_map.html"
+m.save(map_filename)
+
+print(f"Open {map_filename} in a browser to select points. Click anywhere to see coordinates.")

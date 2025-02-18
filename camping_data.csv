@@ -1,0 +1,16 @@
+name,latitude,longitude,road_direction
+Reception,41.8358468,3.0867555,
+Pool,41.8349,3.0866,
+Bungalow 1,41.835212,3.087379,
+Bungalow 2,41.835,3.0875,
+Bungalow 3,41.8348,3.0876,
+Bungalow 4,41.8346,3.0872,
+Bungalow 5,41.8344,3.0869,
+Intersection 1,41.8355,3.087,one-way
+Intersection 2,41.8352,3.0872,two-way
+Intersection 3,41.8349,3.0874,one-way
+Intersection 4,41.8346,3.0871,two-way
+Road 1,41.8356,3.0871,one-way
+Road 2,41.8353,3.0873,two-way
+Road 3,41.835,3.0875,one-way
+Road 4,41.8347,3.0873,two-way
