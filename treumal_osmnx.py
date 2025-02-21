@@ -3,9 +3,13 @@ import folium
 import networkx as nx
 import osmnx as ox
 import qrcode
+import os
 
-# Define the CSV filename
-db_filename = "camping_data.csv"
+# Define paths
+path = "data"
+image_path = "images"
+db_name = "camping_data.csv"
+db_filename = os.path.join(path, db_name)
 
 # Load points and roads from CSV
 def load_camping_data():
@@ -36,6 +40,12 @@ def build_graph(points, roads):
     
     return G
 
+# Add images to specific locations
+image_locations = {
+    "Reception": "Reception.jpeg",
+    "Bungalow 2": "bungalow_2.jpeg"
+}
+
 # Generate the route between reception and a chosen location
 def generate_route(destination):
     points, roads = load_camping_data()
@@ -53,9 +63,35 @@ def generate_route(destination):
     
     # Create the map
     m = folium.Map(location=points["Reception"], zoom_start=17)
+    
+    # Draw the route
     route_coords = [points[point] for point in route]
     folium.PolyLine(route_coords, color='blue', weight=5, opacity=0.7).add_to(m)
-    
+
+    # Add markers with images where available
+    for point in route:
+        lat, lon = points[point]
+
+        # Check if an image exists for this location
+        if point in image_locations:
+            img_filename = os.path.join(image_path, image_locations[point])
+            img_html = f'<img src="{img_filename}" width="200px">'
+
+            popup = folium.Popup(img_html, max_width=250)
+            folium.Marker(
+                location=[lat, lon],
+                popup=popup,
+                tooltip=point,
+                icon=folium.Icon(color="green", icon="info-sign")
+            ).add_to(m)
+        else:
+            # Default marker without an image
+            folium.Marker(
+                location=[lat, lon],
+                tooltip=point,
+                icon=folium.Icon(color="blue", icon="info-sign")
+            ).add_to(m)
+
     # Save the map
     map_filename = "route_camping.html"
     m.save(map_filename)
