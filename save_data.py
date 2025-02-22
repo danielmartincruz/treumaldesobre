@@ -1,3 +1,4 @@
+#Script to generate the camping and define the data. 
 import csv
 import folium
 import os

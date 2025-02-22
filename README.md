@@ -49,7 +49,7 @@ If Python is not installed, download and install it from [Python's official webs
 Once the virtual environment is activated, install the required packages:
 
 ```bash
-pip install folium networkx osmnx qrcode gmaps googlemaps pillow
+pip install folium networkx osmnx qrcode gmaps googlemaps pillow pyperclip
 ```
 
 ## Verifying the Installation
