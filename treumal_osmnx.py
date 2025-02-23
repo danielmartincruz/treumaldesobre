@@ -99,9 +99,36 @@ def build_graph(points, roads):
     return G
 
 
+def upload_to_google_drive(local_file):
+    drive_service = authenticate_google_drive()
+    
+    file_metadata = {
+        "name": os.path.basename(local_file),
+        "mimeType": "image/jpeg" if local_file.endswith(('.jpg', '.jpeg', '.png')) else "text/html",
+        "parents": [GOOGLE_DRIVE_FOLDER_ID]
+    }
+    
+    media = MediaFileUpload(local_file, mimetype=file_metadata["mimeType"])
+    uploaded_file = drive_service.files().create(
+        body=file_metadata, media_body=media, fields="id"
+    ).execute()
+    
+    file_id = uploaded_file.get("id")
+
+    # Make file publicly accessible
+    drive_service.permissions().create(
+        fileId=file_id,
+        body={"role": "reader", "type": "anyone"},
+    ).execute()
+
+    # Generate the public direct link
+    return f"https://drive.google.com/uc?id={file_id}"
+
 
 
 # Generate the shortest route from reception to a chosen location
+import shutil  # Import for copying images
+
 def generate_route(destination):
     points, roads = load_camping_data()
     G = build_graph(points, roads)
@@ -123,33 +150,67 @@ def generate_route(destination):
     route_coords = [points[point] for point in route]
     folium.PolyLine(route_coords, color='blue', weight=5, opacity=0.7).add_to(m)
 
-    # Add markers
+    # **Define locations with images**
+    image_locations = {
+        "Reception": "images/Reception.jpeg",
+        "Bungalow 2": "images/bungalow_2.jpeg"
+    }
+
+    # **Ensure images are in the routes folder**
+    routes_image_folder = "routes/images"
+    os.makedirs(routes_image_folder, exist_ok=True)
+
+    # **Copy images to the routes folder**
+    copied_image_locations = {}
+    for point, img_path in image_locations.items():
+        dest_path = os.path.join(routes_image_folder, os.path.basename(img_path))
+        shutil.copy(img_path, dest_path)  # Copy the image
+        copied_image_locations[point] = dest_path  # Update the path
+
+    # Add markers with images
     for point in route:
         lat, lon = points[point]
+
+        # Check if the point has an image
+        if point in copied_image_locations:
+            img_filename = copied_image_locations[point]  # Path to the copied image
+            img_html = f'<img src="{img_filename}" width="200px">'
+            popup = folium.Popup(f"{point}<br>{img_html}", max_width=250)
+        else:
+            popup = folium.Popup(f"<b>{point}</b>", max_width=200)
+
+        # Add marker to the map
         folium.Marker(
             location=[lat, lon],
+            popup=popup,
             tooltip=point,
-            icon=folium.Icon(color="blue", icon="info-sign")
+            icon=folium.Icon(color="green" if point in copied_image_locations else "blue", icon="info-sign")
         ).add_to(m)
 
-    # Save the route locally
-    m.save(map_filename)
+    # **Save the route locally**
+    local_map_filename = f"routes/route_to_{destination.replace(' ', '_')}.html"
+    os.makedirs("routes", exist_ok=True)  # Ensure the folder exists
+    m.save(local_map_filename)
 
-    # Upload the file to Google Drive and get the link
-    google_drive_url = upload_to_google_drive(map_filename)
+    print(f"📁 Route saved locally: {local_map_filename}")
 
-    # Generate QR Code with the Google Drive link
-    qr_filename = "route_qr.png"
+    # **Upload the map to Google Drive and get the link**
+    google_drive_url = upload_to_google_drive(local_map_filename)
+
+    # **Generate QR Code with the Google Drive link**
+    qr_filename = f"routes/qr_to_{destination.replace(' ', '_')}.png"
     qr = qrcode.make(google_drive_url)
     qr.save(qr_filename)
 
     print(f"\n🚀 Route successfully uploaded to Google Drive: {google_drive_url}")
     print(f"📸 QR Code generated: {qr_filename} (links to the route map)")
 
+
+
 def debug_graph(G):
     print("\n🚀 Graph Connections:")
     for edge in G.edges:
         print(f"➡️ {edge[0]} → {edge[1]}")
-        
+
 # Example usage
 generate_route("Bungalow 2")  # Change this to any point from the CSV
