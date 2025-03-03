@@ -1,216 +1,141 @@
+import os
 import csv
 import folium
 import networkx as nx
 import qrcode
-import os
+import shutil
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2 import service_account
 
 # Define paths
-path = "data"
-db_name = "camping_data.csv"
-map_filename = "route_camping.html"
+DATA_PATH = "data"
+IMAGE_PATH = "images"
+ROUTES_PATH = "routes"
+DB_NAME = "camping_data.csv"
 CREDENTIALS_FILE = "treumaldesobre.json"  # Service account credentials
-
-# Google Drive Folder ID (your public folder)
 GOOGLE_DRIVE_FOLDER_ID = "17I_oJRD-01s5icfCO_MmggjNRh6nRx-4"
 
-# Authenticate Google Drive API
 def authenticate_google_drive():
+    """Authenticate and return a Google Drive service client."""
     creds = service_account.Credentials.from_service_account_file(
         CREDENTIALS_FILE, scopes=["https://www.googleapis.com/auth/drive.file"]
     )
     return build("drive", "v3", credentials=creds)
 
-# Upload file to Google Drive and return a public link
 def upload_to_google_drive(local_file):
+    """Upload a file to Google Drive and return a public link."""
     drive_service = authenticate_google_drive()
-    
-    file_metadata = {
-        "name": os.path.basename(local_file),
-        "mimeType": "text/html",
-        "parents": [GOOGLE_DRIVE_FOLDER_ID]  # Upload inside the shared folder
-    }
-    
-    media = MediaFileUpload(local_file, mimetype="text/html")
-    uploaded_file = drive_service.files().create(
-        body=file_metadata, media_body=media, fields="id"
-    ).execute()
-    
+    mime_type = "image/jpeg" if local_file.endswith(('.jpg', '.jpeg', '.png')) else "text/html"
+    file_metadata = {"name": os.path.basename(local_file), "mimeType": mime_type, "parents": [GOOGLE_DRIVE_FOLDER_ID]}
+    media = MediaFileUpload(local_file, mimetype=mime_type)
+    uploaded_file = drive_service.files().create(body=file_metadata, media_body=media, fields="id").execute()
     file_id = uploaded_file.get("id")
-
-    # Make file publicly accessible
-    drive_service.permissions().create(
-        fileId=file_id,
-        body={"role": "reader", "type": "anyone"},
-    ).execute()
-
-    # Generate the public direct link
+    
+    drive_service.permissions().create(fileId=file_id, body={"role": "reader", "type": "anyone"}).execute()
     return f"https://drive.google.com/uc?id={file_id}"
 
-# Load camping data (points and roads) from CSV
 def load_camping_data():
-    points = {}
-    roads = []
-    with open(os.path.join(path, db_name), mode='r') as file:
+    """Load camping data (points and roads) from CSV."""
+    points, roads = {}, []
+    
+    with open(os.path.join(DATA_PATH, DB_NAME), mode='r') as file:
         reader = csv.DictReader(file)
+        
         for row in reader:
-            lat, lon = float(row["latitude"]), float(row["longitude"])
-            points[row["name"]] = (lat, lon)
-            if row["road_direction"]:
-                roads.append((row["name"], row["road_direction"]))
+            if row["source"] == "road":  
+                # ✅ Roads are stored using start and end coordinates, not single lat/lon
+                if row["start_lat"] and row["start_lon"] and row["end_lat"] and row["end_lon"]:
+                    start = (float(row["start_lat"]), float(row["start_lon"]))
+                    end = (float(row["end_lat"]), float(row["end_lon"]))
+                    roads.append((row["name"], start, end, row["road_direction"]))  # Store as segment
+            else:
+                # ✅ Single locations (Bungalows, Reception, Intersections)
+                if row["latitude"] and row["longitude"]:  # Ensure no empty values
+                    points[row["name"]] = (float(row["latitude"]), float(row["longitude"]))
+    
     return points, roads
 
-# Build a directed graph with road connections
+
 def build_graph(points, roads):
+    """Construct a directed graph from the camping data."""
     G = nx.DiGraph()
 
-    # Add nodes (all locations)
-    for point_name, (lat, lon) in points.items():
-        G.add_node(point_name, pos=(lat, lon))
+    # Add nodes for all points (Reception, Intersections, Bungalows)
+    for point_name, coords in points.items():
+        G.add_node(point_name, pos=coords)
 
-    # Define manual logical connections to fix missing paths
-    connections = {
-        "Reception": ["Intersection 1", "Intersection 2"],  # Reception connects to Intersections
-        "Intersection 1": ["Road 1", "Intersection 2"],  # Intersections link to roads & each other
-        "Intersection 2": ["Road 2", "Intersection 3"],
-        "Intersection 3": ["Road 3", "Intersection 4"],
-        "Intersection 4": ["Road 4"],
+    # ✅ Add edges for roads (using tuple structure: (name, start, end, direction))
+    for road in roads:
+        road_name, start, end, direction = road  # ✅ Unpack tuple
 
-        "Road 1": ["Bungalow 1", "Bungalow 2"],  # Roads link to bungalows
-        "Road 2": ["Bungalow 3"],
-        "Road 3": ["Bungalow 4"],
-        "Road 4": ["Bungalow 5"]
-    }
+        # Create unique node names for start and end points
+        start_point = f"{road_name}_start"
+        end_point = f"{road_name}_end"
 
-    # Connect nodes based on roads & directionality
-    for road, direction in roads:
-        if road in connections:
-            for connected_point in connections[road]:
-                G.add_edge(road, connected_point, weight=1)  # Default forward connection
-                if direction == "two-way":
-                    G.add_edge(connected_point, road, weight=1)  # Make it bidirectional
+        G.add_node(start_point, pos=start)
+        G.add_node(end_point, pos=end)
 
-    # **Manually connect Reception to intersections** (this was missing)
-    G.add_edge("Reception", "Intersection 1", weight=1)
-    G.add_edge("Reception", "Intersection 2", weight=1)
+        G.add_edge(start_point, end_point, weight=1)  # Default one-way
+        if direction == "two-way":
+            G.add_edge(end_point, start_point, weight=1)  # Allow reverse direction
 
     return G
 
 
-def upload_to_google_drive(local_file):
-    drive_service = authenticate_google_drive()
-    
-    file_metadata = {
-        "name": os.path.basename(local_file),
-        "mimeType": "image/jpeg" if local_file.endswith(('.jpg', '.jpeg', '.png')) else "text/html",
-        "parents": [GOOGLE_DRIVE_FOLDER_ID]
-    }
-    
-    media = MediaFileUpload(local_file, mimetype=file_metadata["mimeType"])
-    uploaded_file = drive_service.files().create(
-        body=file_metadata, media_body=media, fields="id"
-    ).execute()
-    
-    file_id = uploaded_file.get("id")
 
-    # Make file publicly accessible
-    drive_service.permissions().create(
-        fileId=file_id,
-        body={"role": "reader", "type": "anyone"},
-    ).execute()
-
-    # Generate the public direct link
-    return f"https://drive.google.com/uc?id={file_id}"
-
-
-
-# Generate the shortest route from reception to a chosen location
-import shutil  # Import for copying images
-
-def generate_route(destination):
-    points, roads = load_camping_data()
-    G = build_graph(points, roads)
-
-    if destination not in points:
-        print("❌ Destination not found.")
-        return
-    
+def get_shortest_path(G, origin, destination):
+    """Calculate the shortest path from origin to a given destination."""
     try:
-        route = nx.shortest_path(G, "Reception", destination, weight="weight")
+        return nx.shortest_path(G, origin, destination, weight="weight")
     except nx.NetworkXNoPath:
         print("❌ No valid path found.")
-        return
-    
-    # Create the map centered at Reception
-    m = folium.Map(location=points["Reception"], zoom_start=17)
+        return None
 
-    # Draw the route on the map
-    route_coords = [points[point] for point in route]
-    folium.PolyLine(route_coords, color='blue', weight=5, opacity=0.7).add_to(m)
-
-    # **Define locations with images**
-    image_locations = {
-        "Reception": "images/Reception.jpeg",
-        "Bungalow 2": "images/bungalow_2.jpeg"
-    }
-
-    # **Ensure images are in the routes folder**
-    routes_image_folder = "routes/images"
-    os.makedirs(routes_image_folder, exist_ok=True)
-
-    # **Copy images to the routes folder**
+def add_images_to_route(route, points):
+    """Add images to route points where available."""
+    image_locations = {"Reception": "Reception.jpeg", "Bungalow 2": "bungalow_2.jpeg"}
+    os.makedirs(os.path.join(ROUTES_PATH, "images"), exist_ok=True)
     copied_image_locations = {}
-    for point, img_path in image_locations.items():
-        dest_path = os.path.join(routes_image_folder, os.path.basename(img_path))
-        shutil.copy(img_path, dest_path)  # Copy the image
-        copied_image_locations[point] = dest_path  # Update the path
+    for point, img in image_locations.items():
+        src = os.path.join(IMAGE_PATH, img)
+        dest = os.path.join(ROUTES_PATH, "images", img)
+        shutil.copy(src, dest)
+        copied_image_locations[point] = dest
+    return copied_image_locations
 
-    # Add markers with images
-    for point in route:
-        lat, lon = points[point]
-
-        # Check if the point has an image
-        if point in copied_image_locations:
-            img_filename = copied_image_locations[point]  # Path to the copied image
-            img_html = f'<img src="{img_filename}" width="200px">'
-            popup = folium.Popup(f"{point}<br>{img_html}", max_width=250)
-        else:
-            popup = folium.Popup(f"<b>{point}</b>", max_width=200)
-
-        # Add marker to the map
-        folium.Marker(
-            location=[lat, lon],
-            popup=popup,
-            tooltip=point,
-            icon=folium.Icon(color="green" if point in copied_image_locations else "blue", icon="info-sign")
-        ).add_to(m)
-
-    # **Save the route locally**
-    local_map_filename = f"routes/route_to_{destination.replace(' ', '_')}.html"
-    os.makedirs("routes", exist_ok=True)  # Ensure the folder exists
+def save_route(route, points, destination, save_to_drive=False):
+    """Save the route locally and optionally upload to Google Drive."""
+    m = folium.Map(location=points[route[0]], zoom_start=17)
+    folium.PolyLine([points[point] for point in route], color='blue', weight=5, opacity=0.7).add_to(m)
+    
+    local_map_filename = os.path.join(ROUTES_PATH, f"route_to_{destination.replace(' ', '_')}.html")
     m.save(local_map_filename)
-
     print(f"📁 Route saved locally: {local_map_filename}")
+    
+    if save_to_drive:
+        google_drive_url = upload_to_google_drive(local_map_filename)
+        qr_filename = os.path.join(ROUTES_PATH, f"qr_to_{destination.replace(' ', '_')}.png")
+        qr = qrcode.make(google_drive_url)
+        qr.save(qr_filename)
+        print(f"🚀 Route uploaded: {google_drive_url}")
+        print(f"📸 QR Code generated: {qr_filename}")
 
-    # **Upload the map to Google Drive and get the link**
-    google_drive_url = upload_to_google_drive(local_map_filename)
+def generate_route(origin, destination, save_to_drive=False):
+    """Generate a route from origin to destination."""
+    points, roads = load_camping_data()
+    G = build_graph(points, roads)
+    route = get_shortest_path(G, origin, destination)
+    if route:
+        add_images_to_route(route, points)
+        save_route(route, points, destination, save_to_drive)
 
-    # **Generate QR Code with the Google Drive link**
-    qr_filename = f"routes/qr_to_{destination.replace(' ', '_')}.png"
-    qr = qrcode.make(google_drive_url)
-    qr.save(qr_filename)
+def main():
+    """Main execution function."""
+    origin = "Reception"  # Default starting point
+    destination = "Intersection 1"  # Change as needed
+    save_to_drive = True  # Change to False to save locally only
+    generate_route(origin, destination, save_to_drive)
 
-    print(f"\n🚀 Route successfully uploaded to Google Drive: {google_drive_url}")
-    print(f"📸 QR Code generated: {qr_filename} (links to the route map)")
-
-
-
-def debug_graph(G):
-    print("\n🚀 Graph Connections:")
-    for edge in G.edges:
-        print(f"➡️ {edge[0]} → {edge[1]}")
-
-# Example usage
-generate_route("Bungalow 2")  # Change this to any point from the CSV
+if __name__ == "__main__":
+    main()

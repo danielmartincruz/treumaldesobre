@@ -1,40 +1,31 @@
-# predefined_points.py
-
 # Define bungalows (road_direction is not meaningful)
 bungalows = [
-    {"name": "Bungalow 1", "latitude": 41.835212, "longitude": 3.087379},
-    {"name": "Bungalow 2", "latitude": 41.835, "longitude": 3.0875},
-    {"name": "Bungalow 3", "latitude": 41.8348, "longitude": 3.0876},
-    {"name": "Bungalow 4", "latitude": 41.8346, "longitude": 3.0872},
-    {"name": "Bungalow 5", "latitude": 41.8344, "longitude": 3.0869},
+    {"name": "Bungalow 75", "latitude": 41.835968, "longitude": 3.087096}
 ]
 
 # Define intersections (road_direction is required)
 intersections = [
-    {"name": "Intersection 1", "latitude": 41.8355, "longitude": 3.087, "road_direction": "one-way"},
-    {"name": "Intersection 2", "latitude": 41.8352, "longitude": 3.0872, "road_direction": "two-way"},
-    {"name": "Intersection 3", "latitude": 41.8349, "longitude": 3.0874, "road_direction": "one-way"},
-    {"name": "Intersection 4", "latitude": 41.8346, "longitude": 3.0871, "road_direction": "two-way"},
+    {"name": "Intersection 1", "latitude": 41.836325, "longitude": 3.087039 , "road_direction": "one-way"},
+    {"name": "Intersection 2", "latitude": 41.835480, "longitude": 3.087084 , "road_direction": "one-way"}
 ]
 
-# Define roads (road_direction is required)
+# Define roads (as line segments)
 roads = [
-    {"name": "Road 1", "latitude": 41.8356, "longitude": 3.0871, "road_direction": "one-way"},
-    {"name": "Road 2", "latitude": 41.8353, "longitude": 3.0873, "road_direction": "two-way"},
-    {"name": "Road 3", "latitude": 41.835, "longitude": 3.0875, "road_direction": "one-way"},
-    {"name": "Road 4", "latitude": 41.8347, "longitude": 3.0873, "road_direction": "two-way"},
+    {"name": "Road 1", "start": (41.836729, 3.087111), "end": (41.836346, 41.836346), "road_direction": "two-way"},
+    {"name": "Road 2", "start": (41.836325, 3.087039), "end": (41.835480, 3.087084), "road_direction": "two-way"},
+    {"name": "Road 3", "start": (41.835480, 3.087084), "end": (41.835, 3.0875), "road_direction": "one-way"},
+    {"name": "Road 4", "start": (41.835, 3.0875), "end": (41.8347, 3.0873), "road_direction": "two-way"},
 ]
 
 # Define special locations (road_direction is not meaningful)
 special = [
-    {"name": "Reception", "latitude": 41.8358468, "longitude": 3.0867555},
-    {"name": "Pool", "latitude": 41.8349, "longitude": 3.0866},
+    {"name": "Reception", "latitude": 41.8344505, "longitude": 3.0848667}
 ]
 
-# Add the "source" field to each category and ensure "road_direction" where needed
+# Add the "source" field
 for location in bungalows:
     location["source"] = "bungalow"
-    location["road_direction"] = None  # Explicitly setting it for clarity
+    location["road_direction"] = None  # Not needed
 
 for location in intersections:
     location["source"] = "intersection"
@@ -44,7 +35,7 @@ for location in roads:
 
 for location in special:
     location["source"] = "special"
-    location["road_direction"] = None  # Explicitly setting it for clarity
+    location["road_direction"] = None  # Not needed
 
 # Combine all locations into a single list
-predefined_locations = bungalows + intersections + roads + special
+predefined_locations = bungalows + intersections + special

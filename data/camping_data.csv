@@ -1,16 +1,9 @@
-name,latitude,longitude,road_direction,source
-Bungalow 1,41.835212,3.087379,,bungalow
-Bungalow 2,41.835,3.0875,,bungalow
-Bungalow 3,41.8348,3.0876,,bungalow
-Bungalow 4,41.8346,3.0872,,bungalow
-Bungalow 5,41.8344,3.0869,,bungalow
-Intersection 1,41.8355,3.087,one-way,intersection
-Intersection 2,41.8352,3.0872,two-way,intersection
-Intersection 3,41.8349,3.0874,one-way,intersection
-Intersection 4,41.8346,3.0871,two-way,intersection
-Road 1,41.8356,3.0871,one-way,road
-Road 2,41.8353,3.0873,two-way,road
-Road 3,41.835,3.0875,one-way,road
-Road 4,41.8347,3.0873,two-way,road
-Reception,41.8358468,3.0867555,,special
-Pool,41.8349,3.0866,,special
+name,latitude,longitude,start_lat,start_lon,end_lat,end_lon,road_direction,source
+Bungalow 75,41.835968,3.087096,,,,,,bungalow
+Intersection 1,41.836325,3.087039,,,,,one-way,intersection
+Intersection 2,41.83548,3.087084,,,,,one-way,intersection
+Reception,41.8344505,3.0848667,,,,,,special
+Road 1,,,41.836729,3.087111,41.836346,41.836346,two-way,road
+Road 2,,,41.836325,3.087039,41.83548,3.087084,two-way,road
+Road 3,,,41.83548,3.087084,41.835,3.0875,one-way,road
+Road 4,,,41.835,3.0875,41.8347,3.0873,two-way,road

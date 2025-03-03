@@ -1,8 +1,7 @@
-#Script to generate the camping and define the data. 
 import csv
 import folium
 import os
-from predefined_points import predefined_locations  # Import categorized locations
+from predefined_points import predefined_locations, roads  # Import roads separately
 
 # Define the directory for saving files
 path = "data"
@@ -16,32 +15,35 @@ map_filename = os.path.join(path, map_name)
 # Ensure the directory exists
 os.makedirs(path, exist_ok=True)
 
-# Initialize CSV file with headers and predefined locations
-existing_points = set()
-
-# Check if the file already exists and read existing data
-if os.path.exists(db_filename):
-    with open(db_filename, mode='r', newline='') as file:
-        reader = csv.reader(file)
-        next(reader, None)  # Skip header
-        for row in reader:
-            existing_points.add(tuple(row))  # Store existing data to avoid duplicates
-
-# Write predefined locations (only if not already present)
+# ✅ Overwrite camping_data.csv with the latest data
 with open(db_filename, mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(["name", "latitude", "longitude", "road_direction", "source"])  # Headers
+    # ✅ Add new headers for roads (start_lat, start_lon, end_lat, end_lon)
+    writer.writerow(["name", "latitude", "longitude", "start_lat", "start_lon", "end_lat", "end_lon", "road_direction", "source"])  
 
+    # ✅ Write all predefined locations (bungalows, intersections, special locations)
     for location in predefined_locations:
-        row = (
+        writer.writerow([
             location["name"], 
             location["latitude"], 
             location["longitude"], 
-            location.get("road_direction", None),  # Ensures missing values are set to None
+            "", "", "", "",  # Empty columns for start/end coordinates (not needed for single points)
+            location.get("road_direction", ""),  
             location["source"]
-        )
-        if row not in existing_points:  # Avoid duplicate entries
-            writer.writerow(row)
+        ])
+
+    # ✅ Write roads with start & end coordinates
+    for road in roads:
+        writer.writerow([
+            road["name"], 
+            "", "",  # Empty columns for single lat/lon (not needed for roads)
+            road["start"][0], road["start"][1],  # Start coordinates
+            road["end"][0], road["end"][1],  # End coordinates
+            road["road_direction"],  
+            "road"
+        ])
+
+print(f"✅ Updated {db_filename} with {len(predefined_locations) + len(roads)} locations.")
 
 # Create an interactive map centered at Camping Treumal
 camping_center = (41.8355, 3.0870)
@@ -77,4 +79,4 @@ m.get_root().html.add_child(folium.Element(click_script))
 # Save map to file
 m.save(map_filename)
 
-print(f"Open {map_filename} in a browser to select points. Click anywhere to see precise coordinates.")
+print(f"✅ Open {map_filename} in a browser to select points. Click anywhere to see precise coordinates.")
