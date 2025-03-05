@@ -11,15 +11,13 @@ intersections = [
 
 # Define roads (as line segments)
 roads = [
-    {"name": "Road 1", "start": (41.836729, 3.087111), "end": (41.836346, 41.836346), "road_direction": "two-way"},
-    {"name": "Road 2", "start": (41.836325, 3.087039), "end": (41.835480, 3.087084), "road_direction": "two-way"},
-    {"name": "Road 3", "start": (41.835480, 3.087084), "end": (41.835, 3.0875), "road_direction": "one-way"},
-    {"name": "Road 4", "start": (41.835, 3.0875), "end": (41.8347, 3.0873), "road_direction": "two-way"},
+    {"name": "Road 1", "points": [(41.836729, 3.087111), (41.836600, 3.087050), (41.836346, 3.087046)], "road_direction": "two-way"},
+    {"name": "Road 2", "points": [(41.836325, 3.087039), (41.835480, 3.087084)], "road_direction": "one-way"},
 ]
 
 # Define special locations (road_direction is not meaningful)
 special = [
-    {"name": "Reception", "latitude": 41.8344505, "longitude": 3.0848667}
+    {"name": "Reception", "latitude": 41.8344194, "longitude": 3.086958}
 ]
 
 # Add the "source" field

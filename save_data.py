@@ -15,68 +15,36 @@ map_filename = os.path.join(path, map_name)
 # Ensure the directory exists
 os.makedirs(path, exist_ok=True)
 
+# Determine the maximum number of waypoints across all roads
+max_waypoints = max(len(road["points"]) for road in roads) if roads else 2
+
 # ✅ Overwrite camping_data.csv with the latest data
 with open(db_filename, mode='w', newline='') as file:
     writer = csv.writer(file)
-    # ✅ Add new headers for roads (start_lat, start_lon, end_lat, end_lon)
-    writer.writerow(["name", "latitude", "longitude", "start_lat", "start_lon", "end_lat", "end_lon", "road_direction", "source"])  
+    
+    # ✅ Dynamically generate headers for road waypoints
+    waypoint_headers = [f"lat_{i},lon_{i}" for i in range(1, max_waypoints + 1)]
+    writer.writerow(["name", "latitude", "longitude"] + waypoint_headers + ["road_direction", "source"])  
 
     # ✅ Write all predefined locations (bungalows, intersections, special locations)
     for location in predefined_locations:
         writer.writerow([
             location["name"], 
             location["latitude"], 
-            location["longitude"], 
-            "", "", "", "",  # Empty columns for start/end coordinates (not needed for single points)
-            location.get("road_direction", ""),  
-            location["source"]
-        ])
+            location["longitude"]
+        ] + ["" for _ in range(2 * max_waypoints)] + [location.get("road_direction", ""), location["source"]])
 
-    # ✅ Write roads with start & end coordinates
+    # ✅ Write roads with flexible waypoints
     for road in roads:
+        waypoints = [coord for point in road["points"] for coord in point]  # Flatten list
+        waypoints += ["", ""] * (max_waypoints - len(road["points"]))  # Pad to max length
+        
         writer.writerow([
-            road["name"], 
-            "", "",  # Empty columns for single lat/lon (not needed for roads)
-            road["start"][0], road["start"][1],  # Start coordinates
-            road["end"][0], road["end"][1],  # End coordinates
-            road["road_direction"],  
-            "road"
-        ])
+            road["name"], "", ""  # Empty columns for single lat/lon (not needed for roads)
+        ] + waypoints + [road["road_direction"], "road"])
 
 print(f"✅ Updated {db_filename} with {len(predefined_locations) + len(roads)} locations.")
 
 # Create an interactive map centered at Camping Treumal
 camping_center = (41.8355, 3.0870)
 m = folium.Map(location=camping_center, zoom_start=17)
-
-# JavaScript script for click event
-click_script = f"""
-<script>
-    document.addEventListener("DOMContentLoaded", function() {{
-        var map = {m.get_name()};  // Get the Folium-generated map name
-
-        map.on('click', function(e) {{
-            var lat = e.latlng.lat.toFixed(7);  // Ensure 7 decimal places
-            var lng = e.latlng.lng.toFixed(7);
-
-            // Remove existing marker if any
-            if (window.selectedMarker) {{
-                map.removeLayer(window.selectedMarker);
-            }}
-
-            // Add a new marker at clicked location
-            window.selectedMarker = L.marker(e.latlng).addTo(map)
-                .bindPopup("Lat: " + lat + "<br>Lng: " + lng)
-                .openPopup();
-        }});
-    }});
-</script>
-"""
-
-# Inject JavaScript into the HTML
-m.get_root().html.add_child(folium.Element(click_script))
-
-# Save map to file
-m.save(map_filename)
-
-print(f"✅ Open {map_filename} in a browser to select points. Click anywhere to see precise coordinates.")
