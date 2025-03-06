@@ -17,7 +17,7 @@ roads = [
 
 # Define special locations (road_direction is not meaningful)
 special = [
-    {"name": "Reception", "latitude": 41.8344194, "longitude": 3.086958}
+    {"name": "Reception", "latitude": 41.8366780, "longitude": 3.0871180}
 ]
 
 # Add the "source" field
