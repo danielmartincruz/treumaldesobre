@@ -1,6 +1,6 @@
 # Define bungalows (road_direction is not meaningful)
 bungalows = [
-    {"name": "Bungalow 75", "latitude": 41.835968, "longitude": 3.087096}
+    {"name": "Bungalow 75", "latitude": 41.835968, "longitude": 3.087096, "image": "Bungalow_75.jpeg"}
 ]
 
 # Define intersections (road_direction is required)
@@ -17,7 +17,7 @@ roads = [
 
 # Define special locations (road_direction is not meaningful)
 special = [
-    {"name": "Reception", "latitude": 41.8366780, "longitude": 3.0871180}
+    {"name": "Reception", "latitude": 41.8366780, "longitude": 3.0871180, "image": "Reception.jpeg"}
 ]
 
 # Add the "source" field
