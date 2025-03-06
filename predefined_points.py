@@ -5,14 +5,15 @@ bungalows = [
 
 # Define intersections (road_direction is required)
 intersections = [
-    {"name": "Intersection 1", "latitude": 41.836325, "longitude": 3.087039 , "road_direction": "one-way"},
+    {"name": "Intersection 1", "latitude": 41.8363582, "longitude": 3.0870348 , "road_direction": "one-way"},
     {"name": "Intersection 2", "latitude": 41.835480, "longitude": 3.087084 , "road_direction": "one-way"}
 ]
 
 # Define roads (as line segments)
 roads = [
-    {"name": "Road 1", "points": [(41.836729, 3.087111), (41.836600, 3.087050), (41.836346, 3.087046)], "road_direction": "two-way"},
-    {"name": "Road 2", "points": [(41.836325, 3.087039), (41.835480, 3.087084)], "road_direction": "one-way"},
+    {"name": "Road 1", "points": [(41.8367399, 3.0871341), (41.8365941, 3.0870992), (41.8363582, 3.0870348)], "road_direction": "two-way"},
+    {"name": "Road 2", "points": [(41.8363582, 3.0870348), (41.8362543, 3.0870697)], "road_direction": "one-way"},
+    {"name": "Road 3", "points": [(41.8362543, 3.0870697), (41.8361304, 3.0870402), (41.8359606, 3.0870080)], "road_direction": "one-way"},
 ]
 
 # Define special locations (road_direction is not meaningful)
