@@ -2,6 +2,8 @@ import csv
 import folium
 import os
 import networkx as nx
+import numpy as np
+from geopy.distance import geodesic
 
 # Define paths
 DATA_PATH = "data"
@@ -15,84 +17,100 @@ MAP_FILENAME = os.path.join(ROUTES_PATH, MAP_NAME)
 # Ensure the routes directory exists
 os.makedirs(ROUTES_PATH, exist_ok=True)
 
+# Step 1: Load camping data from CSV
 def load_camping_data():
-    """Load camping data (points and roads) from CSV."""
     points, roads = {}, []
     graph = nx.Graph()
-    
+    road_start_points = {}  # Track road starts to match with endpoints
+
     with open(DB_FILENAME, mode='r') as file:
         reader = csv.DictReader(file)
         
         for row in reader:
             if row["source"] == "road":
-                waypoints = []
-                for i in range(1, 10):  # Dynamic waypoints
-                    lat_key = f"lat_{i}"
-                    lon_key = f"lon_{i}"
-                    if lat_key in row and lon_key in row and row[lat_key] and row[lon_key]:
-                        waypoints.append((float(row[lat_key]), float(row[lon_key])))
-                
-                if len(waypoints) >= 2:
-                    roads.append({"name": row["name"], "points": waypoints, "road_direction": row["road_direction"]})
-                    for j in range(len(waypoints) - 1):
-                        graph.add_edge(waypoints[j], waypoints[j+1], weight=1)
+                if "End" in row["name"]:
+                    road_name = row["name"].replace(" End", "")
+                    if road_name in road_start_points:
+                        roads.append({
+                            "name": road_name,
+                            "start": road_start_points[road_name],
+                            "end": (float(row["latitude"]), float(row["longitude"])),
+                            "road_direction": row["road_direction"]
+                        })
+                        graph.add_edge(roads[-1]["start"], roads[-1]["end"], weight=geodesic(roads[-1]["start"], roads[-1]["end"]).meters)
+                else:
+                    road_start_points[row["name"]] = (float(row["latitude"]), float(row["longitude"]))
             else:
-                if row["latitude"] and row["longitude"]:
-                    points[row["name"]] = {
-                        "coords": (float(row["latitude"]), float(row["longitude"])),
-                        "image": row["image"] if row["image"] else None
-                    }
+                points[row["name"]] = {
+                    "coords": (float(row["latitude"]), float(row["longitude"])),
+                    "image": row["image"] if row["image"] else None
+                }
     
     return points, roads, graph
 
-def find_shortest_path(graph, points, start_name, end_name):
-    """Find the shortest path between two points using NetworkX."""
-    if start_name not in points or end_name not in points:
-        print("❌ Error: One or both locations not found.")
-        return []
-    
-    start = points[start_name]["coords"]
-    end = points[end_name]["coords"]
-    
-    if start in graph and end in graph:
-        return nx.shortest_path(graph, source=start, target=end, weight="weight")
-    else:
-        print("❌ No valid path found.")
-        return []
+# Step 2: Calculate closest point on a line (using line formula)
+def closest_point_on_line(p, a, b):
+    p, a, b = np.array(p), np.array(a), np.array(b)
+    ap = p - a
+    ab = b - a
+    t = np.dot(ap, ab) / np.dot(ab, ab)
+    t = max(0, min(1, t))  # Ensure the closest point is within the segment
 
-def generate_route_map(start_name, end_name, points, roads, graph):
-    """Generate a map with a route between two locations."""
-    if start_name not in points or end_name not in points:
-        print("❌ Error: One or both locations not found.")
-        return
-    
-    m = folium.Map(location=points[start_name]["coords"], zoom_start=17)
-    
-    # Add markers with default arrow icon but show image in popup if available
-    for loc_name in [start_name, end_name]:
-        loc = points[loc_name]
-        popup_text = f"<b>{loc_name}</b><br>({loc['coords'][0]}, {loc['coords'][1]})"
-        if loc["image"]:
-            popup_text += f'<br><img src="images/{loc["image"]}" width="100">'
-        folium.Marker(loc["coords"], popup=folium.Popup(popup_text, max_width=250), icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
-    
-    # Draw all roads
+    return tuple(a + t * ab)
+
+# Step 3: Find the closest trimmed road points and add them to the graph
+def find_trimmed_road(point, roads, graph):
+    closest_road = None
+    closest_point = None
+    min_distance = float('inf')
+
     for road in roads:
-        folium.PolyLine(road["points"], color="blue", weight=3, opacity=0.7).add_to(m)
-    
-    # Draw the shortest path
-    path = find_shortest_path(graph, points, start_name, end_name)
-    if path:
-        folium.PolyLine(path, color="red", weight=4, opacity=0.9).add_to(m)
-    
+        a, b = road["start"], road["end"]
+        closest = closest_point_on_line(point, a, b)
+        distance = geodesic(point, closest).meters
+        if distance < min_distance:
+            min_distance = distance
+            closest_point = closest
+            closest_road = (a, b)
+
+    # Add closest point as a new node to the graph
+    graph.add_node(closest_point)
+    graph.add_edge(closest_road[0], closest_point, weight=geodesic(closest_road[0], closest_point).meters)
+    graph.add_edge(closest_point, closest_road[1], weight=geodesic(closest_point, closest_road[1]).meters)
+
+    return closest_point
+
+# Step 4: Generate the route map
+def generate_route_map(points, roads, graph):
+    m = folium.Map(location=points["Reception"]["coords"], zoom_start=17)
+
+    # Add markers with images and coordinates
+    for point_name, point_data in points.items():
+        popup_text = f"<b>{point_name}</b><br>({point_data['coords'][0]}, {point_data['coords'][1]})"
+        if point_data["image"]:
+            popup_text += f'<br><img src="images/{point_data["image"]}" width="100">'
+        folium.Marker(point_data["coords"], popup=popup_text, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
+
+    # Highlight all roads
+    for road in roads:
+        folium.PolyLine([road["start"], road["end"]], color="blue", weight=3, opacity=0.7).add_to(m)
+
+    # Find closest points on roads for Reception and Bungalow 75
+    node_A = find_trimmed_road(points["Reception"]["coords"], roads, graph)
+    node_B = find_trimmed_road(points["Bungalow 75"]["coords"], roads, graph)
+
+    # Draw the optimal path
+    path = nx.shortest_path(graph, source=node_A, target=node_B, weight="weight")
+    folium.PolyLine(path, color="red", weight=4, opacity=0.9).add_to(m)
+
+    # Save the map
     m.save(MAP_FILENAME)
     print(f"✅ Route map saved as {MAP_FILENAME}")
 
+# Step 5: Main function
 def main():
     points, roads, graph = load_camping_data()
-    start_location = "Reception"
-    end_location = "Bungalow 75"
-    generate_route_map(start_location, end_location, points, roads, graph)
+    generate_route_map(points, roads, graph)
 
 if __name__ == "__main__":
     main()
