@@ -47,8 +47,37 @@ def save_data_to_csv():
 
     print(f"✅ Updated {DB_FILENAME} with {len(special_points) + len(bungalows) + len(roads)} locations.")
 
+def generate_select_points_map():
+    """Generate a map where clicking on points shows their coordinates."""
+    m = folium.Map(location=[41.836, 3.087], zoom_start=17)
+
+    for location in predefined_data["special_points"] + predefined_data["bungalows"]:
+        if "bungalow" in location["name"].lower():
+            folium.RegularPolygonMarker(
+                location=[location["latitude"], location["longitude"]],
+                number_of_sides=4,
+                radius=5,
+                color='blue',
+                fill=True,
+                fill_color='blue',
+                fill_opacity=0.7,
+                popup=location['name'] + '\n(' + str(location['latitude']) + ', ' + str(location['longitude']) + ')'
+            ).add_to(m)
+        else:
+            folium.Marker(
+            [location["latitude"], location["longitude"]],
+            popup=f"{location['name']}\n({location['latitude']}, {location['longitude']})",
+            icon=folium.CircleMarker(radius=3, color='blue', fill=True, fill_color='blue', fill_opacity=0.7) if "bungalow" in location["name"].lower() else folium.Icon(color="green")
+        ).add_to(m)
+
+    
+
+    m.save(MAP_FILENAME)
+    print(f"✅ Select points map saved as {MAP_FILENAME}")
+
 def main():
     save_data_to_csv()
+    generate_select_points_map()
 
 if __name__ == "__main__":
     main()

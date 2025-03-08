@@ -5,7 +5,9 @@ special_points = [
 
 # Define bungalows
 bungalows = [
-    {"name": "Bungalow 75", "latitude": 41.835968, "longitude": 3.087096, "image": "Bungalow_75.jpeg", "road_direction": None}
+    {"name": "Bungalow 75", "latitude": 41.835968, "longitude": 3.087096, "image": "Bungalow_75.jpeg", "road_direction": None},
+    {"name": "Bungalow 76", "latitude": 41.836968, "longitude": 3.087096, "image": "Bungalow_75.jpeg", "road_direction": None}
+
 ]
 
 # Define roads (beginning and end points only)
