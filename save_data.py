@@ -6,9 +6,11 @@ from predefined_points import predefined_data  # Import updated data structure
 # Define the directory for saving files
 DATA_PATH = "data"
 DB_NAME = "camping_data.csv"
+MAP_BLANK_NAME = "blank_map.html"
 MAP_NAME = "select_points_map.html"
 DB_FILENAME = os.path.join(DATA_PATH, DB_NAME)
 MAP_FILENAME = os.path.join(DATA_PATH, MAP_NAME)
+MAP_BLANK_FILENAME = os.path.join(DATA_PATH, MAP_BLANK_NAME)
 
 # Ensure the directory exists
 os.makedirs(DATA_PATH, exist_ok=True)
@@ -47,6 +49,38 @@ def save_data_to_csv():
 
     print(f"✅ Updated {DB_FILENAME} with {len(special_points) + len(bungalows) + len(roads)} locations.")
 
+def generate_blank_map():
+    """Generate a blank map where clicking on points shows their coordinates with 7 decimal places."""
+    camping_center = (41.8355, 3.0870)
+    m = folium.Map(location=camping_center, zoom_start=17)
+
+    # JavaScript script for click event
+    click_script = f"""
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {{
+            var map = {m.get_name()};
+
+            map.on('click', function(e) {{
+                var lat = e.latlng.lat.toFixed(7);
+                var lng = e.latlng.lng.toFixed(7);
+
+                if (window.selectedMarker) {{
+                    map.removeLayer(window.selectedMarker);
+                }}
+
+                window.selectedMarker = L.marker(e.latlng).addTo(map)
+                    .bindPopup("Lat: " + lat + "<br>Lng: " + lng)
+                    .openPopup();
+            }});
+        }});
+    </script>
+    """
+
+    m.get_root().html.add_child(folium.Element(click_script))
+    m.save(MAP_BLANK_FILENAME)
+    print(f"✅ Blank map saved as {MAP_BLANK_FILENAME}")
+
+
 def generate_select_points_map():
     """Generate a map where clicking on points shows their coordinates."""
     m = folium.Map(location=[41.836, 3.087], zoom_start=17)
@@ -77,6 +111,7 @@ def generate_select_points_map():
 
 def main():
     save_data_to_csv()
+    generate_blank_map()
     generate_select_points_map()
 
 if __name__ == "__main__":
