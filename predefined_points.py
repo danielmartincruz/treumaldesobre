@@ -6,7 +6,7 @@ special_points = [
 # Define bungalows
 bungalows = [
     {"name": "Bungalow 75", "latitude": 41.835968, "longitude": 3.087096, "image": "Bungalow_75.jpeg", "road_direction": None},
-    {"name": "Bungalow 76", "latitude": 41.836968, "longitude": 3.087096, "image": "Bungalow_75.jpeg", "road_direction": None}
+    {"name": "Bungalow 314", "latitude": 41.8358706  , "longitude": 3.0871341, "image": "Bungalow_314.jpeg", "road_direction": None}
 
 ]
 

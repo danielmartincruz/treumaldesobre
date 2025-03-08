@@ -17,7 +17,6 @@ MAP_FILENAME = os.path.join(ROUTES_PATH, MAP_NAME)
 # Ensure the routes directory exists
 os.makedirs(ROUTES_PATH, exist_ok=True)
 
-# Step 1: Load camping data from CSV
 def load_camping_data():
     points, roads = {}, []
     graph = nx.Graph()
@@ -48,17 +47,15 @@ def load_camping_data():
     
     return points, roads, graph
 
-# Step 2: Calculate closest point on a line (using line formula)
 def closest_point_on_line(p, a, b):
     p, a, b = np.array(p), np.array(a), np.array(b)
     ap = p - a
     ab = b - a
     t = np.dot(ap, ab) / np.dot(ab, ab)
-    t = max(0, min(1, t))  # Ensure the closest point is within the segment
+    t = max(0, min(1, t))
 
     return tuple(a + t * ab)
 
-# Step 3: Find the closest trimmed road points and add them to the graph
 def find_trimmed_road(point, roads, graph):
     closest_road = None
     closest_point = None
@@ -73,46 +70,39 @@ def find_trimmed_road(point, roads, graph):
             closest_point = closest
             closest_road = road
 
-    # Add closest point as a new node to the graph
     graph.add_node(closest_point)
     graph.add_edge(closest_road["start"], closest_point, weight=geodesic(closest_road["start"], closest_point).meters)
     graph.add_edge(closest_point, closest_road["end"], weight=geodesic(closest_point, closest_road["end"]).meters)
 
-    # Return the trimmed road segment only
-    trimmed_road = [closest_road["start"], closest_point]
-    
     return [closest_road["start"], closest_point], [closest_point, closest_road["end"]], tuple(closest_point)
 
-# Step 4: Generate the route map
-def generate_route_map(points, roads, graph):
-    m = folium.Map(location=points["Reception"]["coords"], zoom_start=17)
+def generate_route_map(points, roads, graph, start_point, end_point):
+    m = folium.Map(location=points[start_point]["coords"], zoom_start=17)
 
-    # Add markers with images and coordinates
-    for point_name, point_data in points.items():
+    for point_name in [start_point, end_point]:
+        point_data = points[point_name]
         popup_text = f"<b>{point_name}</b><br>({point_data['coords'][0]}, {point_data['coords'][1]})"
         if point_data["image"]:
             popup_text += f'<br><img src="images/{point_data["image"]}" width="100">'
         folium.Marker(point_data["coords"], popup=popup_text, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
 
-    # Highlight trimmed roads only
-    trimmed_road_A, _, node_A = find_trimmed_road(points["Reception"]["coords"], roads, graph)
-    trimmed_road_B, _, node_B = find_trimmed_road(points["Bungalow 75"]["coords"], roads, graph)
+    trimmed_road_A, _, node_A = find_trimmed_road(points[start_point]["coords"], roads, graph)
+    trimmed_road_B, _, node_B = find_trimmed_road(points[end_point]["coords"], roads, graph)
 
     folium.PolyLine(trimmed_road_A, color="blue", weight=3, opacity=0.7).add_to(m)
     folium.PolyLine(trimmed_road_B, color="blue", weight=3, opacity=0.7).add_to(m)
 
-    # Draw the optimal path
     path = nx.shortest_path(graph, source=node_A, target=node_B, weight="weight")
     folium.PolyLine(path, color="red", weight=4, opacity=0.9).add_to(m)
 
-    # Save the map
     m.save(MAP_FILENAME)
     print(f"✅ Route map saved as {MAP_FILENAME}")
 
-# Step 5: Main function
 def main():
     points, roads, graph = load_camping_data()
-    generate_route_map(points, roads, graph)
+    start_location = "Reception"
+    end_location = "Bungalow 75"
+    generate_route_map(points, roads, graph, start_location, end_location)
 
 if __name__ == "__main__":
     main()
