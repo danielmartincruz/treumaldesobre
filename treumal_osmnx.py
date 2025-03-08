@@ -71,14 +71,17 @@ def find_trimmed_road(point, roads, graph):
         if distance < min_distance:
             min_distance = distance
             closest_point = closest
-            closest_road = (a, b)
+            closest_road = road
 
     # Add closest point as a new node to the graph
     graph.add_node(closest_point)
-    graph.add_edge(closest_road[0], closest_point, weight=geodesic(closest_road[0], closest_point).meters)
-    graph.add_edge(closest_point, closest_road[1], weight=geodesic(closest_point, closest_road[1]).meters)
+    graph.add_edge(closest_road["start"], closest_point, weight=geodesic(closest_road["start"], closest_point).meters)
+    graph.add_edge(closest_point, closest_road["end"], weight=geodesic(closest_point, closest_road["end"]).meters)
 
-    return closest_point
+    # Return the trimmed road segment only
+    trimmed_road = [closest_road["start"], closest_point]
+    
+    return [closest_road["start"], closest_point], [closest_point, closest_road["end"]], tuple(closest_point)
 
 # Step 4: Generate the route map
 def generate_route_map(points, roads, graph):
@@ -91,13 +94,12 @@ def generate_route_map(points, roads, graph):
             popup_text += f'<br><img src="images/{point_data["image"]}" width="100">'
         folium.Marker(point_data["coords"], popup=popup_text, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
 
-    # Highlight all roads
-    for road in roads:
-        folium.PolyLine([road["start"], road["end"]], color="blue", weight=3, opacity=0.7).add_to(m)
+    # Highlight trimmed roads only
+    trimmed_road_A, _, node_A = find_trimmed_road(points["Reception"]["coords"], roads, graph)
+    trimmed_road_B, _, node_B = find_trimmed_road(points["Bungalow 75"]["coords"], roads, graph)
 
-    # Find closest points on roads for Reception and Bungalow 75
-    node_A = find_trimmed_road(points["Reception"]["coords"], roads, graph)
-    node_B = find_trimmed_road(points["Bungalow 75"]["coords"], roads, graph)
+    folium.PolyLine(trimmed_road_A, color="blue", weight=3, opacity=0.7).add_to(m)
+    folium.PolyLine(trimmed_road_B, color="blue", weight=3, opacity=0.7).add_to(m)
 
     # Draw the optimal path
     path = nx.shortest_path(graph, source=node_A, target=node_B, weight="weight")
